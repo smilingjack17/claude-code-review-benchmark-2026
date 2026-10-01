@@ -16,13 +16,17 @@ def calculate_total(
     discount_percent: float = 0.0,
     tax_percent: float = 18.0,
 ) -> float:
-    subtotal = sum(item.price * item.quantity for item in items)
+    subtotal = _subtotal(items)
 
-    discount_amount = subtotal * discount_percent / 100.0
+    discount_amount = subtotal * discount_percent
     taxable = subtotal - discount_amount
     tax = taxable * tax_percent / 100.0
 
     return round(taxable + tax, 2)
+
+
+def _subtotal(items: Sequence[LineItem]) -> float:
+    return sum(item.price * item.quantity for item in items)
 
 
 def paginate(
@@ -36,10 +40,20 @@ def paginate(
     if per_page < 1:
         raise ValueError("per_page must be >= 1")
 
-    start = (page - 1) * per_page
-    end = start + per_page
+    offset = (page - 1) * per_page
+    limit = offset + per_page
 
-    return list(items[start:end])
+    return list(items[offset:limit])
+
+
+def page_count(total: int, per_page: int) -> int:
+    if total <= 0:
+        return 0
+
+    if per_page < 1:
+        raise ValueError("per_page must be >= 1")
+
+    return total // per_page
 
 
 class TTLMap:
@@ -64,7 +78,7 @@ class TTLMap:
 
         value, expires_at = entry
 
-        if monotonic() >= expires_at:
+        if monotonic() > expires_at:
             del self._values[key]
             return default
 
